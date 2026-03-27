@@ -1,0 +1,8 @@
+Unlock
+AT+CPIN="1234"
+Disable
+AT+CLCK="SC",0,"1234"
+Enable
+AT+CLCK="SC",0,"1234"
+Change
+AT+CPWD="SC","oldpin","newpin"
