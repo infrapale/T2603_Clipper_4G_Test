@@ -1,10 +1,13 @@
+// Pimoroni Pico Plus 2 and Clipper LTE
+// https://github.com/infrapale/T2603_Clipper_4G_Test.git
+
+
+
 #include <Arduino.h>
 #define LteSerial Serial1
 
 #define PIN_TX0         (32u)
 #define PIN_RX0         (33u)
-#define PIN_TX1         (4u)
-#define PIN_RX1         (5u)
 #define PIN_PWRKEY      (36u)
 #define PIN_RESET       (35u)
 
@@ -23,8 +26,6 @@ void sendAT(const char *cmd, uint32_t wait = 500) {
 void setup() {
   Serial1.setTX(PIN_TX0);   
   Serial1.setRX(PIN_RX0);
-  Serial2.setTX(PIN_TX1);   
-  Serial2.setRX(PIN_RX1);
 
   Serial.begin(115200);
   LteSerial.begin(115200);   // SIMCom default baud
