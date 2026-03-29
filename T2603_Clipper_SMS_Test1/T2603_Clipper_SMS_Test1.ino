@@ -1,10 +1,13 @@
 #include <Arduino.h>
-#define LteSerial Serial2
+#define LteSerial Serial1
 
-#define PIN_TX0         (0u)
-#define PIN_RX0         (1u)
+#define PIN_TX0         (32u)
+#define PIN_RX0         (33u)
 #define PIN_TX1         (4u)
 #define PIN_RX1         (5u)
+#define PIN_PWRKEY      (36u)
+#define PIN_RESET       (35u)
+
 
 //HardwareSerial LTE(1);   // UART1 on Pico 2
 // Pico 2 UART1 default pins: TX=GP4, RX=GP5
@@ -28,16 +31,33 @@ void setup() {
 
   delay(2000);
   Serial.println("Initialising modem…");
+  pinMode(PIN_PWRKEY, OUTPUT);
+  pinMode(PIN_RESET, OUTPUT);
+
+  digitalWrite(PIN_RESET,HIGH);
+  digitalWrite(PIN_PWRKEY,HIGH);
+  delay(1000);
+  digitalWrite(PIN_RESET,LOW);
+  delay(500);
+  digitalWrite(PIN_RESET,HIGH);
+  delay(1000);
+  digitalWrite(PIN_PWRKEY,LOW);
+  delay(500);
+  digitalWrite(PIN_PWRKEY,HIGH);
+  delay(1000);
+
 
   sendAT("AT");
   sendAT("AT+CPIN=\"1234\"");
   sendAT("AT+CMGF=1");   // SMS text mode
 
   // Replace with your number
-  sendAT("AT+CMGS=\"+358405056630\"");
+  // sendAT("AT+CMGS=\"+358405056630\"");
+  sendAT("AT+CMGS=\"+358400737682\"");     // Sauli
+  // sendAT("AT+CMGS=\"+358400454270\"");     // Hessu
 
   // Message body
-  LteSerial.print("Hello from Pico 2 + Clipper LTE!");
+  LteSerial.print("Hello from Pico Plus 2 + Clipper LTE!");
 
   // End with Ctrl+Z
   LteSerial.write(26);
