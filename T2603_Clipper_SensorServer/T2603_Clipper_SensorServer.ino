@@ -3,22 +3,6 @@
 
 #define LteSerial Serial1
 
-#define PIN_TX0     (32u)
-#define PIN_RX0     (33u)
-#define PIN_PWRKEY  (36u)
-#define PIN_RESET   (35u)
-
-
-void flushLTE(uint32_t timeout = 500) {
-  uint32_t start = millis();
-  while (millis() - start < timeout) {
-    while (LteSerial.available()) {
-      LteSerial.read();
-      start = millis(); // extend timeout while data is flowing
-    }
-    delay(2);
-  }
-}
 
 void sendAT(const char *cmd, uint32_t wait = 500) {
   Serial.print(">> ");
@@ -32,24 +16,15 @@ void sendAT(const char *cmd, uint32_t wait = 500) {
   Serial.println();
 }
 
-String readLineFromLTE(uint32_t timeout = 1000) {
+String readLineFromLTE() {
   String s = "";
-  uint32_t start = millis();
-
-  while (millis() - start < timeout) {
-    if (LteSerial.available()) {
-      char c = LteSerial.read();
-      s += c;
-
-      if (c == '\n') break;   // full line received
-    } else {
-      delay(2);               // wait for next char
-    }
+  while (LteSerial.available()) {
+    char c = LteSerial.read();
+    s += c;
+    if (c == '\n') break;
   }
-
   return s;
 }
-
 
 void readSMS(int index);
 
@@ -64,11 +39,10 @@ void checkIncomingSMS() {
 
   if (line.length() == 0) return;
 
-  Serial.print("[LTE read] ");
+  Serial.print("[LTE] ");
   Serial.println(line);
 
   if (line.startsWith("+CMTI")) {
-    delay(50); // gives modem time to finish writing to SIM
     int comma = line.indexOf(',');
     if (comma > 0) {
       int index = line.substring(comma + 1).toInt();
@@ -86,44 +60,31 @@ void readSMS(int index) {
   Serial.print("[ACTION] Reading SMS ");
   Serial.println(index);
 
-  // Request SMS
   LteSerial.print("AT+CMGR=");
   LteSerial.println(index);
+  delay(500);
 
   String sender = "";
   String message = "";
 
-  uint32_t start = millis();
-  while (millis() - start < 2000) {   // 2‑second read window
-    if (!LteSerial.available()) {
-      delay(10);
-      continue;
-    }
-
+  while (LteSerial.available()) {
     String line = readLineFromLTE();
-    line.trim();
-
-    if (line.length() == 0) continue;
-
     Serial.print("[SMS] ");
     Serial.println(line);
 
-    // Header line
     if (line.startsWith("+CMGR")) {
-      int q1 = line.indexOf('"');
-      int q2 = line.indexOf('"', q1 + 1);
-      int q3 = line.indexOf('"', q2 + 1);
-      int q4 = line.indexOf('"', q3 + 1);
+      int firstQuote = line.indexOf('"', 0);
+      int secondQuote = line.indexOf('"', firstQuote + 1);
+      int thirdQuote = line.indexOf('"', secondQuote + 1);
+      int fourthQuote = line.indexOf('"', thirdQuote + 1);
 
-      if (q3 > 0 && q4 > 0) {
-        sender = line.substring(q3 + 1, q4);
+      if (thirdQuote > 0 && fourthQuote > 0) {
+        sender = line.substring(thirdQuote + 1, fourthQuote);
         Serial.print("[INFO] Sender: ");
         Serial.println(sender);
       }
-    }
-    // Body line (not starting with + or OK)
-    else if (!line.startsWith("+") && line != "OK") {
-      message += line + "\n";
+    } else if (line.length() > 0 && !line.startsWith("+") && !line.startsWith("OK")) {
+      message += line;
     }
   }
 
@@ -141,7 +102,7 @@ void readSMS(int index) {
 
     LteSerial.print("Auto‑reply: Message received!");
     LteSerial.write(26); // Ctrl+Z
-    delay(1500);
+    delay(1000);
   }
 
   // Delete SMS
@@ -150,7 +111,6 @@ void readSMS(int index) {
   LteSerial.println(index);
   delay(300);
 }
-
 
 // ------------------------------------------------------------
 // Setup
@@ -164,6 +124,7 @@ void setup() {
   Serial1.setTX(PIN_TX0);
   Serial1.setRX(PIN_RX0);
   LteSerial.begin(115200);
+
   pinMode(PIN_PWRKEY, OUTPUT);
   pinMode(PIN_RESET, OUTPUT);
 
@@ -188,23 +149,19 @@ void setup() {
   // Basic AT init
   sendAT("AT");
   sendAT("ATE0");               // Echo off
-  sendAT("AT+CPIN=\"1234\"");
-  // sendAT("AT+CPIN?");           // SIM status
-  flushLTE();
+  sendAT("AT+CPIN?");           // SIM status
   sendAT("AT+CMGF=1");          // SMS text mode
-  sendAT("AT+CNMI=2,2,0,0,0");  // Enable new SMS notifications
+  sendAT("AT+CNMI=2,1,0,0,0");  // Enable new SMS notifications
 
   // Send initial SMS
   Serial.println("[ACTION] Sending test SMS…");
-  //LteSerial.println("AT+CMGS=\"+358405056630\"");
-  // sendAT("AT+CMGS=\"+358405056630\"");
-  // delay(300);
-  // LteSerial.print("Hello from Pico Plus 2 + LTE!");
-  // LteSerial.write(26);
-  // delay(1000);
+  LteSerial.println("AT+CMGS=\"+3585056630\"");
+  delay(300);
+  LteSerial.print("Hello from Pico Plus 2 + LTE!");
+  LteSerial.write(26);
+  delay(1000);
 
   Serial.println("[INFO] Setup complete. Waiting for SMS…");
-  sendAT("AT+CMGL=\"REC UNREAD\"", 1000);
 }
 
 // ------------------------------------------------------------
